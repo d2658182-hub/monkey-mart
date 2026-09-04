@@ -186,6 +186,34 @@
     return _xhrSend.apply(this, arguments);
   };
 
+  // Anti-sitelock net: the game builds redirect code at runtime (Defold's
+  // html5.run bridge evals it). Wrap eval/Function so any layer that carries
+  // the sitelock URL resolves to a harmless value instead of running. Every
+  // eval layer re-enters this wrapper, so chained/decoding payloads are caught
+  // at the layer that finally contains the literal URL.
+  function looksLikeSitelock(code) {
+    return /sitelock|poki\.(com|io)|poki-gdn/i.test(code);
+  }
+  var _eval = window.eval;
+  window.eval = function (code) {
+    var s = String(code);
+    if (looksLikeSitelock(s)) {
+      log('eval (firewalled, refused)', s.slice(0, 120));
+      return null;
+    }
+    return _eval(code);
+  };
+  var _FunctionCtor = window.Function;
+  window.Function = function () {
+    var args = Array.prototype.slice.call(arguments);
+    var body = args.length ? String(args[args.length - 1]) : '';
+    if (looksLikeSitelock(body)) {
+      log('Function (firewalled, refused)', body.slice(0, 120));
+      return function () { return null; };
+    }
+    return _FunctionCtor.apply(this, args);
+  };
+
   // sendBeacon bypasses fetch/XHR (Monkey Mart's IAP store ping uses it).
   var _sendBeacon = navigator.sendBeacon && navigator.sendBeacon.bind(navigator);
   navigator.sendBeacon = function (url, data) {
