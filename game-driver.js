@@ -136,6 +136,9 @@
   function isLocalUrl(url) {
     try {
       var u = new URL(url, window.location.href);
+      // Same-origin requests serve the game's own files (works on any host,
+      // including GitHub Pages) — always allowed.
+      if (u.origin === window.location.origin) return true;
       return u.protocol === 'about:' || u.protocol === 'blob:' ||
              u.protocol === 'data:' ||
              u.hostname === 'localhost' || u.hostname === '127.0.0.1' ||
